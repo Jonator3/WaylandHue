@@ -1,0 +1,3 @@
+pyscreenshot
+pillow
+hue_py
