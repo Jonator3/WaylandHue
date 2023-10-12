@@ -91,3 +91,4 @@ else:
             if st.button("Start WaylandHue Desktop sync"):
                 write_conf(st.session_state.hue_bridge_ip, st.session_state.hue_user, st.session_state.hue_target_group, brightness_factor)
                 st.session_state.wh_pid = subprocess.Popen(["python3", base_path+"main.py"]).pid
+                st.rerun()
