@@ -80,7 +80,8 @@ else:
             groups = hue_bridge.get_groups()
             target_name = ""
             if st.session_state.hue_target_group is not None:
-                target_name = st.selectbox("Light Group to be controlled:", [g.name for g in groups], groups.index([g for g in groups if g.id == st.session_state.hue_target_group][0]))
+                g_index = groups.index([g for g in groups if g.id == st.session_state.hue_target_group][0])
+                target_name = st.selectbox("Light Group to be controlled:", [g.name for g in groups], index=g_index)
             else:
                 target_name = st.selectbox("Light Group to be controlled:", [g.name for g in groups])
             st.session_state.hue_target_group = [g.id for g in groups if g.name == target_name][0]
