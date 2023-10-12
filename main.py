@@ -1,77 +1,59 @@
-import os.path
-import sys
-import time
-from colorsys import rgb_to_hsv
-import requests as re
-
-import hue_api.exceptions
-import pyscreenshot as ImageGrab
-from hue_api import HueApi
-
-from argparse import ArgumentParser
+import signal
+from datetime import datetime
+import cv2
+import configuration
+import screen_grab
+import os
+import json
 
 
-arg_pars = ArgumentParser()
-
-arg_pars.add_argument("--bridge_ip", type=str, default=None, metavar="IP-Address", help="The IP-Address of your PhilipsHue Bridge")
-arg_pars.add_argument("--interval", type=float, default=1.0, metavar="time", help="Time interval between screenshots")
-arg_pars.add_argument("--bbox", nargs=4, type=int, default=None, metavar="time", help="Bounding-Box for the screenshot")
-
-args = arg_pars.parse_args(sys.argv[1:])
+def signal_handler(sig, frame):
+    print("\nSignal Interrupt received, closing now!")
+    configuration.reset()
+    exit(0)
 
 
-interval = args.interval
-bbox = args.bbox
-bridge_ip = args.bridge_ip
-
-api = HueApi()
-api_key_path = "/".join(sys.argv[0].split("/")[:-1]) + "hue_api_user"
-
-if not os.path.exists(api_key_path):
-    if bridge_ip is None:
-        print("Please specify an IP for the Bridge at first usage.")
-        sys.exit(1)
-    keep_trying = True
-    while keep_trying:
-        input("Please press the big Button on your PhilipsHue Bridge.\nThen press Enter to proceed.")
-        try:
-            api.create_new_user(bridge_ip)
-            keep_trying = False
-        except hue_api.exceptions.ButtonNotPressedException:
-            pass
-    api.save_api_key(api_key_path)
-else:
-    api.load_existing(api_key_path)
-
-api.print_debug_info()
-
-api.fetch_lights()
-api.fetch_groups()
-
-# select target group
-target_group = api.groups[int(input("\nPleas select a Group to control:\n" + " ".join([str(i)+":"+g.name for i, g in enumerate(api.groups)])+"\n"))]
+def get_mean_rgb(img):
+    img = cv2.resize(img, (1, 1), interpolation=cv2.INTER_AREA)
+    b, g, r = img[0, 0]
+    return int(r), int(g), int(b)
 
 
-print("You selected:", target_group.name)
-print(target_group.lights)
+class ScreenRGBGraber(object):
+
+    def __init__(self, on_new_frame=lambda rgb: None, fps=20):
+        self.delta = 1/fps
+        self.last_frame = datetime.now()
+        self.on_new_frame = on_new_frame
+        pipe_r, pipe_w = os.pipe()
+
+        pid = os.fork()
+        if pid == 0:  # child
+            self.__write_loop(pipe_w)
+        else:  # parent
+            self.__read_loop(pipe_r)
+
+    def __write_loop(self, pipe_w):
+        def write(frame):
+            now = datetime.now()
+            if (now - self.last_frame).total_seconds() < self.delta:
+                return
+            self.last_frame = now
+            r, g, b = get_mean_rgb(frame)
+            s = '\n{"r":'+str(r)+', "g":'+str(g)+', "b":'+str(b)+'}'
+            os.write(pipe_w, s.encode("utf-8"))
+        screen_grab.run_screencast(write)
+
+    def __read_loop(self, pipe_r):
+        while True:
+            json_str = os.read(pipe_r, 256).decode("utf-8").split("\n")[-1]
+            data = json.loads(json_str)
+            rgb = data["r"]/255, data["g"]/255, data["b"]/255
+            self.on_new_frame(rgb)
 
 
-while True:
-    time.sleep(interval)
-    # grab fullscreen
-    im = ImageGrab.grab(bbox)
-    im = im.resize((1, 1))
+if __name__ == "__main__":
+    on_new_frame = lambda rgb: configuration.set_rgb(rgb)
 
-    r, g, b = tuple(list(im.getpixel((0, 0)))[:3])
-    print(r, "\t", g, "\t", b)
-
-    h, s, v, = rgb_to_hsv(r/256, g/256, b/256)
-
-    for light in target_group.lights:
-
-        """state_url = light.light_url + "state/"
-        response = re.put(state_url, json={'hue': int(h*(2**16)), 'sat': int(s*(2**8)), 'bri': int(b*(2**8))})
-        print(response)"""
-        light.set_color(int(h*(2**16)), int(s*(2**8)))
-        light.set_brightness(int(b*(2**8)))
-
+    signal.signal(signal.SIGINT, signal_handler)
+    ScreenRGBGraber(on_new_frame)

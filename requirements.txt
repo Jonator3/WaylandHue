@@ -1,3 +1,5 @@
-pyscreenshot
-pillow
-hue_py
+jeepney
+requests
+opencv-python
+dbus-python==1.2.18
+pygobject
