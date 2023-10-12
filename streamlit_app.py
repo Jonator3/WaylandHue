@@ -58,6 +58,7 @@ if os.path.exists(base_path+"config.ini"):
     if conf["API"]["mode"] == "hue":
         st.session_state.hue_bridge_ip = conf["API"]["ip"]
         st.session_state.hue_user = conf["API"]["user"]
+        st.session_state.hue_target_group = conf["API"]["target_group"]
 
 st.markdown('# WaylandHue')
 
