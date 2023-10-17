@@ -11,4 +11,4 @@ fi
 source $venv_dir/bin/activate
 
 
-streamlit run streamlit_app.py
+python3 main.py
