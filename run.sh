@@ -10,4 +10,4 @@ fi
 source $venv_dir/bin/activate
 export PYTHONPATH=$PYTHONPATH:./
 
-python3 main.py --api_mode udp
+python3 main.py
