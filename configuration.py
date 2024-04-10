@@ -65,7 +65,5 @@ def set_rgb(rgb):
     if diff < float(config["Colouring"]["min_difference"]):
         return
     old_rgb = rgb
-    if not (args.silence or args.api_mode == "pipe"):
-        print("RGB:\t", round(r, 3), "\t", round(g, 3), "\t", round(b, 3))
     for api in api_list:
         api.set_color(rgb)
