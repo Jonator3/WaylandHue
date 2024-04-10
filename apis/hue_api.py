@@ -4,6 +4,8 @@ from typing import List
 import requests
 from colorsys import rgb_to_hsv
 
+from apis.basic_api import BasicApi
+
 
 def create_new_user(ip):
     """
@@ -59,25 +61,7 @@ def configure():
         if [g.id for g in groups].__contains__(target):
             break
         print("Enter a valid Group Id or Name!")
-    return {"ip": ip, "user": user, "target_group": target}
-
-
-def start_up(conf):
-    global main_bridge, target_group, restore_data
-    main_bridge = HueBridge(conf.get("ip"), conf.get("user"))
-    target_group = [g for g in main_bridge.get_groups() if g.id == int(conf.get("target_group"))][0]
-    restore_data = main_bridge.get_light_states(target_group.lights)
-
-
-def restore():
-    for light in restore_data.keys():
-        light.set_state(restore_data.get(light))
-
-
-def set_rgb(rgb):
-    global target_group
-    h, s, v = rgb_to_hsv(*rgb)
-    target_group.set_state({"on": True, "sat": int(s * 256), "bri": int(v * 256), "hue": int(h * 65536)})
+    return {"ip": ip, "user": user, "target_group": target, "restore_to_zero": False}
 
 
 class HueBridge(object):
@@ -156,6 +140,25 @@ class HueGroup(object):
         return out
 
 
-main_bridge: HueBridge = None
-target_group: HueGroup = None
-restore_data = {}
+class HueAPI(BasicApi):
+
+    def __init__(self, conf):
+        super().__init__(conf)
+        self.main_bridge = HueBridge(conf.get("ip"), conf.get("user"))
+        self.target_group = [g for g in self.main_bridge.get_groups() if g.id == int(conf.get("target_group"))][0]
+        if not self.restore_to_zero:
+            self.restore_data = self.main_bridge.get_light_states(self.target_group.lights)
+
+    def set_color(self, rgb):
+        h, s, v = rgb_to_hsv(*rgb)
+        self.target_group.set_state({"on": True, "sat": int(s * 256), "bri": int(v * 256), "hue": int(h * 65536)})
+
+    def restore_data(self):
+        if self.restore_to_zero:
+            self.set_color((0, 0, 0))
+        else:
+            for light in self.restore_data.keys():
+                light.set_state(self.restore_data.get(light))
+
+
+api = {"hue": (HueAPI, configure)}
