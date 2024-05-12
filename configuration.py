@@ -2,7 +2,7 @@ import sys
 import os
 from configparser import ConfigParser
 from argparse import ArgumentParser
-from apis import pipe_api, hue_api, udp_api
+from api_manager import apis
 
 base_path = "/".join(sys.argv[0].split("/")[:-1])
 if base_path == "":
@@ -11,15 +11,8 @@ elif not base_path.endswith("/"):
     base_path += "/"
 raw_args = sys.argv[1:]
 
-apis = {
-    "hue": hue_api,
-    "pipe": pipe_api,
-    "udp": udp_api
-}
 
 arg_par = ArgumentParser()
-arg_par.add_argument("--api_mode", type=str, choices=apis, default=list(apis.keys())[0], help="Specify in with way the Programm will output the Colour-Values.")
-arg_par.add_argument("--silence", "-s", default=False, action='store_true', help="Disable STD_IN and STD_OUT. (api_mode Pipe will automaticly set this)")
 
 args = arg_par.parse_args(raw_args)
 
@@ -28,23 +21,41 @@ if not os.path.exists(base_path + "config.ini"):
     print("No Config File Found!\n")
     print("Starting First Time Setup.")
 
-    api_conf = apis.get(args.api_mode).configure()
+    make_new_api = True
+    api_index = 1
 
-    config["API"] = {"mode": args.api_mode}
-    for key in list(api_conf.keys()):
-        config["API"][str(key)] = str(api_conf.get(key))
-    config["Colouring"] = {"brightness_modifier": "1.0", "saturation_modifier": "1.0", "min_difference": "0.01"}
-    config.write(open(base_path + "config.ini", "w+"))
+    while make_new_api:
+        api_mode = input("please enter your desired API:\n"+"\n".join([k for k in apis.keys()])+"\n")
+
+        while api_mode not in apis.keys():
+            api_mode = input("please enter your desired API:\n" + "\n".join([k for k in apis.keys()]) + "\n")
+
+        api_conf = apis.get(api_mode)[1]()
+
+        config["API_"+str(api_index)] = {"mode": api_mode}
+        for key in list(api_conf.keys()):
+            config["API_"+str(api_index)][str(key)] = str(api_conf.get(key))
+        config["Colouring"] = {"brightness_modifier": "1.0", "saturation_modifier": "1.0", "min_difference": "0.01"}
+        config.write(open(base_path + "config.ini", "w+"))
+
+        if input("Do you want too add another API? (y/n) ").lower() == "y":
+            api_index += 1
+        else:
+            make_new_api = False
 else:
     config.read(base_path + "config.ini")
 
-apis.get(config["API"]["mode"]).start_up(config["API"])
+api_list = []
+for api in [sec for sec in config.sections() if sec.startswith("API")]:
+    api_obj = apis.get(config[api]["mode"])[0](config[api])
+    api_list.append(api_obj)
 
 old_rgb = (-1, -1, -1)
 
 
 def reset():
-    apis.get(config["API"]["mode"]).restore()
+    for api in api_list:
+        api.restore()
 
 
 def set_rgb(rgb):
@@ -54,6 +65,5 @@ def set_rgb(rgb):
     if diff < float(config["Colouring"]["min_difference"]):
         return
     old_rgb = rgb
-    if not (args.silence or args.api_mode == "pipe"):
-        print("RGB:\t", round(r, 3), "\t", round(g, 3), "\t", round(b, 3))
-    apis.get(config["API"]["mode"]).set_rgb(rgb)
+    for api in api_list:
+        api.set_color(rgb)

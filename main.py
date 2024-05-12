@@ -40,15 +40,19 @@ class ScreenRGBGraber(object):
                 return
             self.last_frame = now
             r, g, b = get_mean_rgb(frame)
-            s = '\n{"r":'+str(r)+', "g":'+str(g)+', "b":'+str(b)+'}'
-            os.write(pipe_w, s.encode("utf-8"))
+            rgb_int = r*65536 + g*256 + b
+            rgb_bytes = rgb_int.to_bytes(3, "little")
+            os.write(pipe_w, rgb_bytes)
         screen_grab.run_screencast(write)
 
     def __read_loop(self, pipe_r):
         while True:
-            json_str = os.read(pipe_r, 256).decode("utf-8").split("\n")[-1]
-            data = json.loads(json_str)
-            rgb = data["r"]/255, data["g"]/255, data["b"]/255
+            rgb_bytes = os.read(pipe_r, 3)
+            rgb_int = int.from_bytes(rgb_bytes, "little")
+            r = rgb_int//65536
+            g = (rgb_int % 65536)//256
+            b = (rgb_int % 256)
+            rgb = r/255, g/255, b/255
             self.on_new_frame(rgb)
 
 
