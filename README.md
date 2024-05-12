@@ -7,19 +7,18 @@ for syncing your Philips Hue lights with your Wayland Desktop.
 
 1) Download this Repository and go into its Folder
 
-2) Get the IP-Address of the Philips Hue Bridge.
+2) Install [Gstreamer](https://gstreamer.freedesktop.org/documentation/installing/on-linux.html?gi-language=c)
 
-3) run ``pip install -r requirements.txt``
+3) Get the IP-Address of the Philips Hue Bridge.
 
-4) run ``python main.py --bridge_ip [YOUR_IP_HERE]``
+4) run ``pip install -r requirements.txt``
+
+5) run ``python main.py``
+   and go through the first time setup.
 
 ## Use
 
 ### Normal use
 run ``python main.py``
-
-### Use with specified Screen region
-
-run ``python main.py --bbox [left] [up] [right] [down]``
 
  
