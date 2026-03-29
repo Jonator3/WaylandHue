@@ -144,10 +144,11 @@ def run_screencast(on_new_frame=lambda img: None, on_start=lambda: None):
         sink.set_max_buffers(1)
 
         while True:
-            sample = sink.pull_sample()
             if should_stop:
                 terminate()
                 os.kill(os.getpid(), 9)
+                exit(0)
+            sample = sink.pull_sample()
             on_new_sample(sample)
 
 
