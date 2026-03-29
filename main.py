@@ -1,4 +1,5 @@
 import signal
+import time
 from datetime import datetime
 import cv2
 import configuration
@@ -6,11 +7,16 @@ import screen_grab
 import os
 import json
 
+MAIN_THREAD = True
+
 
 def signal_handler(sig, frame):
-    print("\nSignal Interrupt received, closing now!")
     configuration.reset()
-    exit(0)
+    screen_grab.stop()
+    if MAIN_THREAD:
+        print("\nSignal Interrupt received, closing now!")
+        exit(0)
+    
 
 
 def get_mean_rgb(img):
@@ -22,6 +28,7 @@ def get_mean_rgb(img):
 class ScreenRGBGraber(object):
 
     def __init__(self, on_new_frame=lambda rgb: None, fps=20):
+        global MAIN_THREAD
         self.delta = 1/fps
         self.last_frame = datetime.now()
         self.on_new_frame = on_new_frame
@@ -29,6 +36,7 @@ class ScreenRGBGraber(object):
 
         pid = os.fork()
         if pid == 0:  # child
+            MAIN_THREAD = False
             self.__write_loop(pipe_w)
         else:  # parent
             self.__read_loop(pipe_r)
@@ -60,4 +68,5 @@ if __name__ == "__main__":
     on_new_frame = lambda rgb: configuration.set_rgb(rgb)
 
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     ScreenRGBGraber(on_new_frame)
