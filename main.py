@@ -37,12 +37,18 @@ class ScreenRGBGraber(object):
         pid = os.fork()
         if pid == 0:  # child
             MAIN_THREAD = False
+            os.close(pipe_r)
             self.__write_loop(pipe_w)
         else:  # parent
+            os.close(pipe_w)
             self.__read_loop(pipe_r)
 
     def __write_loop(self, pipe_w):
         def write(frame):
+            if frame is None:
+                os.close(pipe_w)
+                print("Stream Closed!")
+                return
             now = datetime.now()
             if (now - self.last_frame).total_seconds() < self.delta:
                 return
@@ -56,6 +62,10 @@ class ScreenRGBGraber(object):
     def __read_loop(self, pipe_r):
         while True:
             rgb_bytes = os.read(pipe_r, 3)
+            if len(rgb_bytes) < 3: # pipe closed
+                configuration.reset()
+                screen_grab.stop()
+                exit(1)
             rgb_int = int.from_bytes(rgb_bytes, "little")
             r = rgb_int//65536
             g = (rgb_int % 65536)//256

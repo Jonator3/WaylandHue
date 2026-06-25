@@ -108,6 +108,11 @@ def run_screencast(on_new_frame=lambda img: None, on_start=lambda: None):
 
 
     def on_new_sample(sample):
+        if sample is None:
+            stop()
+            terminate()
+            on_new_frame(None)
+            return
         buffer = sample.get_buffer()
         caps = sample.get_caps()
         width = caps.get_structure(0).get_value("width")
